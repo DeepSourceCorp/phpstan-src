@@ -8,6 +8,9 @@ final class TypeTraverser
 	/** @var callable(Type $type, callable(Type): Type $traverse): Type */
 	private $cb;
 
+	/** @var array<string, bool> */
+	private array $visitedTypes = [];
+
 	/**
 	 * Map a Type recursively
 	 *
@@ -49,7 +52,19 @@ final class TypeTraverser
 	/** @internal */
 	public function mapInternal(Type $type): Type
 	{
-		return ($this->cb)($type, [$this, 'traverseInternal']);
+		$typeHash = spl_object_hash($type);
+
+		// Prevent infinite recursion by tracking visited types
+		if (isset($this->visitedTypes[$typeHash])) {
+			// Return the type as-is if we've already processed it
+			return $type;
+		}
+
+		$this->visitedTypes[$typeHash] = true;
+		$result = ($this->cb)($type, [$this, 'traverseInternal']);
+		unset($this->visitedTypes[$typeHash]);
+
+		return $result;
 	}
 
 	/** @internal */
