@@ -18,6 +18,9 @@ use function tmpfile;
 final class Process
 {
 
+	private string $command;
+	private LoopInterface $loop;
+	private float $timeoutSeconds;
 	public \React\ChildProcess\Process $process;
 
 	private ?WritableStreamInterface $in = null;
@@ -36,12 +39,11 @@ final class Process
 
 	private ?TimerInterface $timer = null;
 
-	public function __construct(
-		private string $command,
-		private LoopInterface $loop,
-		private float $timeoutSeconds,
-	)
+	public function __construct(string $command, LoopInterface $loop, float $timeoutSeconds)
 	{
+		$this->command = $command;
+		$this->loop = $loop;
+		$this->timeoutSeconds = $timeoutSeconds;
 	}
 
 	/**
@@ -137,6 +139,12 @@ final class Process
 	{
 		$out->on('data', function (array $json): void {
 			$this->cancelTimer();
+			if ($json['action'] === 'debug') {
+				// Handle debug messages from worker
+				fwrite(STDERR, $json['message'] . PHP_EOL);
+				fflush(STDERR);
+				return;
+			}
 			if ($json['action'] !== 'result') {
 				return;
 			}

@@ -40,44 +40,40 @@ use const E_WARNING;
 final class FileAnalyser
 {
 
+	private ScopeFactory $scopeFactory;
+	private NodeScopeResolver $nodeScopeResolver;
+	private Parser $parser;
+	private DependencyResolver $dependencyResolver;
+	private RuleErrorTransformer $ruleErrorTransformer;
+	private LocalIgnoresProcessor $localIgnoresProcessor;
 	/** @var list<Error> */
 	private array $allPhpErrors = [];
 
 	/** @var list<Error> */
 	private array $filteredPhpErrors = [];
 
-	public function __construct(
-		private ScopeFactory $scopeFactory,
-		private NodeScopeResolver $nodeScopeResolver,
-		private Parser $parser,
-		private DependencyResolver $dependencyResolver,
-		private RuleErrorTransformer $ruleErrorTransformer,
-		private LocalIgnoresProcessor $localIgnoresProcessor,
-	)
+	public function __construct(ScopeFactory $scopeFactory, NodeScopeResolver $nodeScopeResolver, Parser $parser, DependencyResolver $dependencyResolver, RuleErrorTransformer $ruleErrorTransformer, LocalIgnoresProcessor $localIgnoresProcessor)
 	{
+		$this->scopeFactory = $scopeFactory;
+		$this->nodeScopeResolver = $nodeScopeResolver;
+		$this->parser = $parser;
+		$this->dependencyResolver = $dependencyResolver;
+		$this->ruleErrorTransformer = $ruleErrorTransformer;
+		$this->localIgnoresProcessor = $localIgnoresProcessor;
 	}
 
 	/**
 	 * @param array<string, true> $analysedFiles
 	 * @param callable(Node $node, Scope $scope): void|null $outerNodeCallback
 	 */
-	public function analyseFile(
-		string $file,
-		array $analysedFiles,
-		RuleRegistry $ruleRegistry,
-		CollectorRegistry $collectorRegistry,
-		?callable $outerNodeCallback,
-	): FileAnalyserResult
+	public function analyseFile(string $file, array $analysedFiles, RuleRegistry $ruleRegistry, CollectorRegistry $collectorRegistry, ?callable $outerNodeCallback): FileAnalyserResult
 	{
 		/** @var list<Error> $fileErrors */
 		$fileErrors = [];
-
 		/** @var list<Error> $locallyIgnoredErrors */
 		$locallyIgnoredErrors = [];
-
 		/** @var list<CollectedData> $fileCollectedData */
 		$fileCollectedData = [];
-
 		$fileDependencies = [];
 		$exportedNodes = [];
 		$linesToIgnore = [];
@@ -112,6 +108,17 @@ final class FileAnalyser
 						$ruleName = get_class($rule);
 
 						try {
+							// DEBUG: Write rule execution to tmp file for crash analysis
+							if (isset($scope) && isset($GLOBALS['phpstan_debug_file'])) {
+								$message = sprintf('[RULE] Processing %s on %s:%d (PID: %d)' . PHP_EOL,
+									$ruleName,
+									basename($scope->getFile()),
+									$node->getStartLine(),
+									getmypid()
+								);
+								@file_put_contents($GLOBALS['phpstan_debug_file'], $message, FILE_APPEND | LOCK_EX);
+							}
+
 							$ruleErrors = $rule->processNode($node, $scope);
 						} catch (AnalysedCodeException $e) {
 							if (isset($uniquedAnalysedCodeExceptionMessages[$e->getMessage()])) {
@@ -202,11 +209,11 @@ final class FileAnalyser
 						if ($dependencies->getExportedNode() !== null) {
 							$exportedNodes[] = $dependencies->getExportedNode();
 						}
-					} catch (AnalysedCodeException) {
+					} catch (AnalysedCodeException $e) {
 						// pass
-					} catch (IdentifierNotFound) {
+					} catch (IdentifierNotFound $e) {
 						// pass
-					} catch (UnableToCompileNode) {
+					} catch (UnableToCompileNode $e) {
 						// pass
 					}
 				};
@@ -265,9 +272,7 @@ final class FileAnalyser
 		} else {
 			$fileErrors[] = (new Error(sprintf('File %s does not exist.', $file), $file, null, false))->withIdentifier('phpstan.path');
 		}
-
 		$this->restoreCollectErrorsHandler();
-
 		foreach ($linesToIgnore as $fileKey => $lines) {
 			if (count($lines) > 0) {
 				continue;
@@ -275,7 +280,6 @@ final class FileAnalyser
 
 			unset($linesToIgnore[$fileKey]);
 		}
-
 		foreach ($unmatchedLineIgnores as $fileKey => $lines) {
 			if (count($lines) > 0) {
 				continue;
@@ -283,7 +287,6 @@ final class FileAnalyser
 
 			unset($unmatchedLineIgnores[$fileKey]);
 		}
-
 		return new FileAnalyserResult(
 			$fileErrors,
 			$this->filteredPhpErrors,

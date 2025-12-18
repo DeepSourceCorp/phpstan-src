@@ -35,6 +35,10 @@ use function sprintf;
 final class WorkerCommand extends Command
 {
 
+	/**
+	 * @var string[]
+	 */
+	private array $composerAutoloaderProjectPaths;
 	private const NAME = 'worker';
 
 	private int $errorCount = 0;
@@ -42,10 +46,9 @@ final class WorkerCommand extends Command
 	/**
 	 * @param string[] $composerAutoloaderProjectPaths
 	 */
-	public function __construct(
-		private array $composerAutoloaderProjectPaths,
-	)
+	public function __construct(array $composerAutoloaderProjectPaths)
 	{
+		$this->composerAutoloaderProjectPaths = $composerAutoloaderProjectPaths;
 		parent::__construct();
 	}
 
@@ -117,7 +120,7 @@ final class WorkerCommand extends Command
 		} catch (PathNotFoundException $e) {
 			$inceptionResult->getErrorOutput()->writeLineFormatted(sprintf('<error>%s</error>', $e->getMessage()));
 			return 1;
-		} catch (InceptionNotSuccessfulException) {
+		} catch (InceptionNotSuccessfulException $e) {
 			return 1;
 		}
 
@@ -149,13 +152,7 @@ final class WorkerCommand extends Command
 	/**
 	 * @param array<string, true> $analysedFiles
 	 */
-	private function runWorker(
-		Container $container,
-		WritableStreamInterface $out,
-		ReadableStreamInterface $in,
-		OutputInterface $output,
-		array $analysedFiles,
-	): void
+	private function runWorker(Container $container, WritableStreamInterface $out, ReadableStreamInterface $in, OutputInterface $output, array $analysedFiles): void
 	{
 		$handleError = function (Throwable $error) use ($out, $output): void {
 			$this->errorCount++;
@@ -193,6 +190,10 @@ final class WorkerCommand extends Command
 		$ruleRegistry = $container->getByType(RuleRegistry::class);
 		$collectorRegistry = $container->getByType(CollectorRegistry::class);
 		$in->on('data', static function (array $json) use ($fileAnalyser, $ruleRegistry, $collectorRegistry, $out, $analysedFiles): void {
+			// Initialize debug file for crash analysis
+			$debugFile = sys_get_temp_dir() . '/phpstan_debug_' . getmypid() . '_' . uniqid() . '.log';
+			$GLOBALS['phpstan_debug_file'] = $debugFile;
+			file_put_contents($debugFile, sprintf('[WORKER] Started PID %d at %s' . PHP_EOL, getmypid(), date('Y-m-d H:i:s')), LOCK_EX);
 			$action = $json['action'];
 			if ($action !== 'analyse') {
 				return;
@@ -211,8 +212,19 @@ final class WorkerCommand extends Command
 			$dependencies = [];
 			$exportedNodes = [];
 			foreach ($files as $file) {
+				// Send debug info through worker channel
+				$out->write([
+					'action' => 'debug',
+					'message' => sprintf('[WORKER] Starting analysis of file: %s (PID: %d)', $file, getmypid())
+				]);
+
 				try {
 					$fileAnalyserResult = $fileAnalyser->analyseFile($file, $analysedFiles, $ruleRegistry, $collectorRegistry, null);
+
+					$out->write([
+						'action' => 'debug',
+						'message' => sprintf('[WORKER] Completed file: %s (PID: %d)', $file, getmypid())
+					]);
 					$fileErrors = $fileAnalyserResult->getErrors();
 					$filteredPhpErrors = array_merge($filteredPhpErrors, $fileAnalyserResult->getFilteredPhpErrors());
 					$allPhpErrors = array_merge($allPhpErrors, $fileAnalyserResult->getAllPhpErrors());
@@ -231,6 +243,23 @@ final class WorkerCommand extends Command
 					}
 				} catch (Throwable $t) {
 					$internalErrorsCount++;
+
+					// Send debug file contents on worker failure
+					if (isset($GLOBALS['phpstan_debug_file']) && file_exists($GLOBALS['phpstan_debug_file'])) {
+						$debugContents = file_get_contents($GLOBALS['phpstan_debug_file']);
+						if ($debugContents !== false) {
+							$out->write([
+								'action' => 'debug',
+								'message' => sprintf('[CRASH] Worker failed analyzing %s: %s', $file, $t->getMessage())
+							]);
+							$out->write([
+								'action' => 'debug',
+								'message' => $debugContents
+							]);
+						}
+						@unlink($GLOBALS['phpstan_debug_file']); // Clean up, suppress warnings
+					}
+
 					$internalErrors[] = new InternalError(
 						$t->getMessage(),
 						sprintf('analysing file %s', $file),
@@ -239,6 +268,11 @@ final class WorkerCommand extends Command
 						true,
 					);
 				}
+			}
+
+			// Clean up debug file on successful completion
+			if (isset($GLOBALS['phpstan_debug_file']) && file_exists($GLOBALS['phpstan_debug_file'])) {
+				@unlink($GLOBALS['phpstan_debug_file']); // Suppress warnings
 			}
 
 			$out->write([
