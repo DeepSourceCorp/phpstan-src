@@ -29,7 +29,6 @@ final class FileFinder
 	 */
 	public function findFiles(array $paths): FileFinderResult
 	{
-		error_log('[PHPSTAN-DEBUG] FileFinder.findFiles() called with paths: ' . implode(', ', $paths));
 		$onlyFiles = true;
 		$files = [];
 		foreach ($paths as $path) {
@@ -50,9 +49,6 @@ final class FileFinder
 		$filesBeforeExclusion = $files;
 		$files = array_values(array_unique(array_filter($files, fn (string $file): bool => !$this->fileExcluder->isExcludedFromAnalysing($file))));
 
-		error_log('[PHPSTAN-DEBUG] FileFinder found ' . count($filesBeforeExclusion) . ' files before exclusion');
-		error_log('[PHPSTAN-DEBUG] FileFinder returning ' . count($files) . ' files after exclusion');
-		error_log('[PHPSTAN-DEBUG] Final files: ' . implode(', ', array_slice($files, 0, 10)) . (count($files) > 10 ? ' ... (and ' . (count($files) - 10) . ' more)' : ''));
 
 		return new FileFinderResult($files, $onlyFiles);
 	}

@@ -176,6 +176,9 @@ final class AnalyseApplication
 	{
 		$filesCount = count($files);
 		$allAnalysedFilesCount = count($allAnalysedFiles);
+
+		error_log(sprintf('[PHPSTAN-DEBUG] Final analysis: %d files to analyze (from %d total discovered)', $filesCount, $allAnalysedFilesCount));
+
 		if ($filesCount === 0) {
 			$errorOutput->getStyle()->progressStart($allAnalysedFilesCount);
 			$errorOutput->getStyle()->progressAdvance($allAnalysedFilesCount);
