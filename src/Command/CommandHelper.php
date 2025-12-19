@@ -250,10 +250,13 @@ final class CommandHelper
 			}
 			if (isset($projectConfig['parameters']['paths'])) {
 				$analysedPathsFromConfig = Helpers::expand($projectConfig['parameters']['paths'], $defaultParameters);
+				error_log('[PHPSTAN-DEBUG] analysedPathsFromConfig: ' . implode(', ', $analysedPathsFromConfig));
 			}
 			if (count($paths) === 0) {
 				$paths = $analysedPathsFromConfig;
 			}
+			error_log('[PHPSTAN-DEBUG] Final paths passed to container: ' . implode(', ', $paths));
+			error_log('[PHPSTAN-DEBUG] analysedPathsFromConfig passed to container: ' . implode(', ', $analysedPathsFromConfig));
 		}
 
 		$additionalConfigFiles = [];
