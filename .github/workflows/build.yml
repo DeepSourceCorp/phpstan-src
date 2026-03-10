@@ -14,7 +14,7 @@ env:
 jobs:
   lint:
     name: "Lint"
-    runs-on: "ubuntu-latest"
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     if: ${{ false }}
 
     strategy:
@@ -52,7 +52,7 @@ jobs:
   coding-standards:
     name: "Coding Standard"
 
-    runs-on: "ubuntu-latest"
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     if: ${{ false }}
 
     strategy:
@@ -85,7 +85,7 @@ jobs:
   dependency-analysis:
     name: "Dependency Analysis"
 
-    runs-on: "ubuntu-latest"
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     if: ${{ false }}
 
     strategy:
@@ -195,7 +195,7 @@ jobs:
   tests-code-coverage:
     name: "Tests with code coverage"
 
-    runs-on: "ubuntu-latest"
+    runs-on: blacksmith-4vcpu-ubuntu-2404
 
     steps:
       - name: "Checkout"
@@ -280,7 +280,7 @@ jobs:
     name: "PHPStan with result cache"
     if: ${{ false }}
 
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
 
     strategy:
       matrix:
@@ -357,7 +357,7 @@ jobs:
     name: "Compiler Tests"
     if: ${{ false }}
 
-    runs-on: "ubuntu-latest"
+    runs-on: blacksmith-4vcpu-ubuntu-2404
 
     steps:
       - name: "Checkout"
@@ -388,7 +388,7 @@ jobs:
     name: "Generate baseline"
     if: ${{ false }}
 
-    runs-on: "ubuntu-latest"
+    runs-on: blacksmith-4vcpu-ubuntu-2404
 
     strategy:
       matrix:
@@ -416,7 +416,7 @@ jobs:
 
   e2e-tests:
     name: "E2E tests"
-    runs-on: "ubuntu-latest"
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     if: ${{ false }}
 
     strategy:
