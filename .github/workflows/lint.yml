@@ -14,7 +14,7 @@ env:
 jobs:
   lint:
     name: "Lint"
-    runs-on: "ubuntu-latest"
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 30
 
     strategy:
@@ -53,7 +53,7 @@ jobs:
   coding-standards:
     name: "Coding Standard"
 
-    runs-on: "ubuntu-latest"
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 30
 
     strategy:
@@ -86,7 +86,7 @@ jobs:
   dependency-analysis:
     name: "Dependency Analysis"
 
-    runs-on: "ubuntu-latest"
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 30
 
     strategy:
